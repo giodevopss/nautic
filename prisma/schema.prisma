@@ -1,0 +1,87 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Customer {
+  id           String        @id @default(cuid())
+  name         String
+  email        String        @unique
+  phone        String
+  passwordHash String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  reservations Reservation[]
+
+  @@map("customers")
+}
+
+/// E-mails capturados pelo modal “Clube VIP” (marketing / descontos)
+model VipLead {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
+
+  @@map("vip_leads")
+}
+
+model Vehicle {
+  id           String        @id @default(cuid())
+  name         String
+  type         String        // LANCHA | JETSKI
+  description  String?
+  pricePerHour Float
+  imageUrl     String?
+  capacity     Int           @default(1)
+  /// AVAILABLE | IN_USE | MAINTENANCE
+  fleetStatus  String        @default("AVAILABLE")
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  reservations Reservation[]
+  dateBlocks   DateBlock[]
+
+  @@map("vehicles")
+}
+
+model DateBlock {
+  id         String   @id @default(cuid())
+  /// null = bloqueio para toda a frota
+  vehicleId  String?
+  startDate  DateTime
+  endDate    DateTime
+  reason     String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  vehicle    Vehicle? @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+
+  @@map("date_blocks")
+}
+
+model Reservation {
+  id         String   @id @default(cuid())
+  customerId String
+  vehicleId  String
+  startDate  DateTime
+  endDate    DateTime
+  status     String   @default("PENDING") // PENDING | CONFIRMED | CANCELLED | COMPLETED
+  totalPrice Float
+  /// Pacote jetski (chave de `jetski-pricing`), ex.: js-pas-planeta
+  jetskiProductKey String?
+  notes      String?
+  optMarinerPilot Boolean @default(false)
+  optDroneFilming Boolean @default(false)
+  optChurrasco    Boolean @default(false)
+  optCooler       Boolean @default(false)
+  optSom          Boolean @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  customer Customer @relation(fields: [customerId], references: [id])
+  vehicle  Vehicle  @relation(fields: [vehicleId], references: [id])
+
+  @@map("reservations")
+}
