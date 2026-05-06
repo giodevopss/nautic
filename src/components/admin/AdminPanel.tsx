@@ -1,12 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getPublicApiUrl } from "@/lib/api";
 import { jetskiProductLabel } from "@/lib/jetski-pricing";
 
 const TOKEN_KEY = "nautic_admin_token";
 
-type Tab = "reservas" | "clientes" | "disponibilidade" | "frota";
+type Tab = "reservas" | "clientes" | "clube-vip" | "disponibilidade" | "frota";
 
 const FLEET_LABEL: Record<string, string> = {
   AVAILABLE: "Disponível",
@@ -84,7 +84,11 @@ export default function AdminPanel() {
           if (v != null) headers.set(k, String(v));
         });
       }
-      const r = await fetch(`${apiBase}${path}`, { ...init, headers });
+      const r = await fetch(`${apiBase}${path}`, {
+        cache: "no-store",
+        ...init,
+        headers,
+      });
       return r;
     },
     [apiBase, authHeaders],
@@ -190,7 +194,7 @@ export default function AdminPanel() {
               Painel administrativo
             </h1>
             <p className="mt-0.5 text-xs text-white/45">
-              Reservas, clientes, disponibilidade e bloqueio manual de datas.
+              Reservas, cadastros (clientes e Clube VIP), disponibilidade e frota.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -198,6 +202,7 @@ export default function AdminPanel() {
               [
                 ["reservas", "Reservas"],
                 ["clientes", "Clientes"],
+                ["clube-vip", "Clube VIP"],
                 ["disponibilidade", "Disponibilidade"],
                 ["frota", "Frota"],
               ] as const
@@ -240,6 +245,9 @@ export default function AdminPanel() {
         )}
         {tab === "clientes" && (
           <ClientesTab adminFetch={adminFetch} setBusy={setBusy} busy={busy} setMsg={setMsg} />
+        )}
+        {tab === "clube-vip" && (
+          <ClubeVipTab adminFetch={adminFetch} setBusy={setBusy} busy={busy} setMsg={setMsg} />
         )}
         {tab === "disponibilidade" && (
           <DisponibilidadeTab
@@ -288,9 +296,20 @@ function ReservasTab({
       vehicle: { name: string; type: string };
     }>
   >([]);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [expandNotesId, setExpandNotesId] = useState<string | null>(null);
+  const [notesDraft, setNotesDraft] = useState("");
+
+  const visibleRows = useMemo(
+    () =>
+      statusFilter === "all" ? rows : rows.filter((r) => r.status === statusFilter),
+    [rows, statusFilter],
+  );
+  const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
-    setBusy(true);
+    setRefreshing(true);
+    setMsg(null);
     try {
       const r = await adminFetch("/api/admin/reservations");
       if (r.status === 401) {
@@ -298,12 +317,15 @@ function ReservasTab({
         window.location.reload();
         return;
       }
-      if (!r.ok) throw new Error();
+      if (!r.ok) {
+        setMsg("Não foi possível carregar as reservas.");
+        return;
+      }
       setRows(await r.json());
     } finally {
-      setBusy(false);
+      setRefreshing(false);
     }
-  }, [adminFetch, setBusy]);
+  }, [adminFetch, setMsg]);
 
   useEffect(() => {
     load();
@@ -329,18 +351,65 @@ function ReservasTab({
     }
   };
 
+  const openNotes = (row: (typeof rows)[0]) => {
+    if (expandNotesId === row.id) {
+      setExpandNotesId(null);
+      return;
+    }
+    setExpandNotesId(row.id);
+    setNotesDraft(row.notes ?? "");
+  };
+
+  const saveNotes = async (id: string) => {
+    setBusy(true);
+    setMsg(null);
+    try {
+      const r = await adminFetch(`/api/admin/reservations/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ notes: notesDraft }),
+      });
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}));
+        setMsg(j.error ?? "Falha ao salvar observações.");
+        return;
+      }
+      setMsg("Observações salvas.");
+      setExpandNotesId(null);
+      load();
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between gap-4">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <h2 className="text-xl font-semibold">Reservas</h2>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => load()}
-          className="rounded-lg border border-white/20 px-4 py-2 text-sm hover:bg-white/5 disabled:opacity-50"
-        >
-          Atualizar
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="flex items-center gap-2 text-sm text-white/55">
+            <span className="text-xs uppercase tracking-wider">Filtrar</span>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="rounded-lg border border-white/15 bg-navy-dark px-3 py-2 text-sm outline-none focus:border-ocean"
+            >
+              <option value="all">Todos os status</option>
+              {Object.entries(RES_LABEL).map(([k, label]) => (
+                <option key={k} value={k}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            type="button"
+            disabled={refreshing}
+            onClick={() => void load()}
+            className="rounded-lg border border-white/20 px-4 py-2 text-sm hover:bg-white/5 disabled:opacity-50"
+          >
+            {refreshing ? "Carregando…" : "Atualizar"}
+          </button>
+        </div>
       </div>
       <div className="overflow-x-auto rounded-xl border border-white/10">
         <table className="w-full min-w-[960px] text-left text-sm">
@@ -352,47 +421,101 @@ function ReservasTab({
               <th className="px-4 py-3">Opcionais</th>
               <th className="px-4 py-3">Valor</th>
               <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3">Obs.</th>
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => (
-              <tr key={row.id} className="border-b border-white/5 hover:bg-white/[0.02]">
-                <td className="px-4 py-3 text-white/80">
-                  {fmtDate(row.startDate)} — {fmtDate(row.endDate)}
-                </td>
-                <td className="px-4 py-3">
-                  <div className="font-medium">{row.customer.name}</div>
-                  <div className="text-xs text-white/45">{row.customer.email}</div>
-                  <div className="text-xs text-white/45">{row.customer.phone}</div>
-                </td>
-                <td className="px-4 py-3 text-white/80">
-                  {row.vehicle.name}{" "}
-                  <span className="text-white/40">({row.vehicle.type})</span>
-                </td>
-                <td className="max-w-[200px] px-4 py-3 text-xs text-white/55">
-                  {fmtReservationExtras(row)}
-                </td>
-                <td className="px-4 py-3">{fmtMoney(row.totalPrice)}</td>
-                <td className="px-4 py-3">
-                  <select
-                    value={row.status}
-                    disabled={busy}
-                    onChange={(e) => patchStatus(row.id, e.target.value)}
-                    className="rounded-lg border border-white/15 bg-navy-dark px-2 py-1 text-xs outline-none focus:border-ocean"
-                  >
-                    {Object.entries(RES_LABEL).map(([k, label]) => (
-                      <option key={k} value={k}>
-                        {label}
-                      </option>
-                    ))}
-                  </select>
-                </td>
-              </tr>
+            {visibleRows.map((row) => (
+              <Fragment key={row.id}>
+                <tr className="border-b border-white/5 hover:bg-white/[0.02]">
+                  <td className="px-4 py-3 text-white/80">
+                    {fmtDate(row.startDate)} — {fmtDate(row.endDate)}
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="font-medium">{row.customer.name}</div>
+                    <div className="text-xs text-white/45">{row.customer.email}</div>
+                    <div className="text-xs text-white/45">{row.customer.phone}</div>
+                  </td>
+                  <td className="px-4 py-3 text-white/80">
+                    {row.vehicle.name}{" "}
+                    <span className="text-white/40">({row.vehicle.type})</span>
+                  </td>
+                  <td className="max-w-[200px] px-4 py-3 text-xs text-white/55">
+                    {fmtReservationExtras(row)}
+                  </td>
+                  <td className="px-4 py-3">{fmtMoney(row.totalPrice)}</td>
+                  <td className="px-4 py-3">
+                    <select
+                      value={row.status}
+                      disabled={busy}
+                      onChange={(e) => patchStatus(row.id, e.target.value)}
+                      className="rounded-lg border border-white/15 bg-navy-dark px-2 py-1 text-xs outline-none focus:border-ocean"
+                    >
+                      {Object.entries(RES_LABEL).map(([k, label]) => (
+                        <option key={k} value={k}>
+                          {label}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                  <td className="px-4 py-3">
+                    <button
+                      type="button"
+                      onClick={() => openNotes(row)}
+                      className="text-left text-xs text-ocean-light hover:underline"
+                    >
+                      {expandNotesId === row.id
+                        ? "Fechar"
+                        : row.notes
+                          ? `${row.notes.slice(0, 28)}${row.notes.length > 28 ? "…" : ""}`
+                          : "Adicionar"}
+                    </button>
+                  </td>
+                </tr>
+                {expandNotesId === row.id && (
+                  <tr className="border-b border-white/5 bg-white/[0.03]">
+                    <td colSpan={7} className="px-4 py-4">
+                      <label className="text-xs uppercase tracking-wider text-white/45">
+                        Observações internas
+                      </label>
+                      <textarea
+                        value={notesDraft}
+                        onChange={(e) => setNotesDraft(e.target.value)}
+                        rows={3}
+                        placeholder="Notas para a equipe (não visíveis ao cliente)…"
+                        className="mt-2 w-full resize-y rounded-lg border border-white/15 bg-navy-dark px-3 py-2 text-sm placeholder:text-white/30"
+                      />
+                      <div className="mt-2 flex gap-2">
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => saveNotes(row.id)}
+                          className="rounded-lg bg-ocean px-4 py-2 text-xs font-semibold uppercase tracking-wide hover:bg-ocean-light disabled:opacity-50"
+                        >
+                          Salvar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setExpandNotesId(null)}
+                          className="rounded-lg border border-white/20 px-4 py-2 text-xs text-white/70 hover:bg-white/5"
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
             ))}
           </tbody>
         </table>
         {rows.length === 0 && (
           <p className="p-8 text-center text-white/45">Nenhuma reserva.</p>
+        )}
+        {rows.length > 0 && visibleRows.length === 0 && (
+          <p className="p-8 text-center text-white/45">
+            Nenhuma reserva com este status.
+          </p>
         )}
       </div>
     </div>
@@ -416,14 +539,30 @@ function ClientesTab({
       name: string;
       email: string;
       phone: string;
+      createdAt: string;
       _count: { reservations: number };
     }>
   >([]);
   const [editing, setEditing] = useState<string | null>(null);
   const [form, setForm] = useState({ name: "", email: "", phone: "" });
+  const [search, setSearch] = useState("");
+
+  const filteredRows = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter(
+      (r) =>
+        r.name.toLowerCase().includes(q) ||
+        r.email.toLowerCase().includes(q) ||
+        r.phone.toLowerCase().includes(q),
+    );
+  }, [rows, search]);
+
+  const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
-    setBusy(true);
+    setRefreshing(true);
+    setMsg(null);
     try {
       const r = await adminFetch("/api/admin/customers");
       if (r.status === 401) {
@@ -431,12 +570,15 @@ function ClientesTab({
         window.location.reload();
         return;
       }
-      if (!r.ok) throw new Error();
+      if (!r.ok) {
+        setMsg("Não foi possível carregar os clientes.");
+        return;
+      }
       setRows(await r.json());
     } finally {
-      setBusy(false);
+      setRefreshing(false);
     }
-  }, [adminFetch, setBusy]);
+  }, [adminFetch, setMsg]);
 
   useEffect(() => {
     load();
@@ -491,30 +633,40 @@ function ClientesTab({
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between gap-4">
-        <h2 className="text-xl font-semibold">Clientes</h2>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => load()}
-          className="rounded-lg border border-white/20 px-4 py-2 text-sm hover:bg-white/5"
-        >
-          Atualizar
-        </button>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+        <h2 className="text-xl font-semibold">Clientes cadastrados</h2>
+        <div className="flex flex-wrap items-center gap-3">
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar por nome, e-mail ou telefone…"
+            className="min-w-[200px] rounded-lg border border-white/15 bg-navy-dark px-3 py-2 text-sm placeholder:text-white/35 outline-none focus:border-ocean"
+          />
+          <button
+            type="button"
+            disabled={refreshing}
+            onClick={() => void load()}
+            className="rounded-lg border border-white/20 px-4 py-2 text-sm hover:bg-white/5 disabled:opacity-50"
+          >
+            {refreshing ? "Carregando…" : "Atualizar"}
+          </button>
+        </div>
       </div>
       <div className="overflow-x-auto rounded-xl border border-white/10">
-        <table className="w-full min-w-[640px] text-left text-sm">
+        <table className="w-full min-w-[720px] text-left text-sm">
           <thead className="border-b border-white/10 bg-navy-light/80 text-xs uppercase tracking-wider text-white/50">
             <tr>
               <th className="px-4 py-3">Nome</th>
               <th className="px-4 py-3">E-mail</th>
               <th className="px-4 py-3">Telefone</th>
+              <th className="px-4 py-3">Cadastro</th>
               <th className="px-4 py-3">Reservas</th>
               <th className="px-4 py-3" />
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => (
+            {filteredRows.map((row) => (
               <tr key={row.id} className="border-b border-white/5 hover:bg-white/[0.02]">
                 {editing === row.id ? (
                   <>
@@ -538,6 +690,9 @@ function ClientesTab({
                         onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
                         className="w-full rounded border border-white/15 bg-navy-dark px-2 py-1 text-sm"
                       />
+                    </td>
+                    <td className="px-4 py-2 text-white/45">
+                      {fmtDate(row.createdAt)}
                     </td>
                     <td className="px-4 py-2 text-white/50">{row._count.reservations}</td>
                     <td className="space-x-2 px-4 py-2 whitespace-nowrap">
@@ -563,6 +718,7 @@ function ClientesTab({
                     <td className="px-4 py-3 font-medium">{row.name}</td>
                     <td className="px-4 py-3 text-white/70">{row.email}</td>
                     <td className="px-4 py-3 text-white/70">{row.phone}</td>
+                    <td className="px-4 py-3 text-white/45">{fmtDate(row.createdAt)}</td>
                     <td className="px-4 py-3 text-white/50">{row._count.reservations}</td>
                     <td className="space-x-3 px-4 py-3 whitespace-nowrap">
                       <button
@@ -589,6 +745,121 @@ function ClientesTab({
         </table>
         {rows.length === 0 && (
           <p className="p-8 text-center text-white/45">Nenhum cliente.</p>
+        )}
+        {rows.length > 0 && filteredRows.length === 0 && (
+          <p className="p-8 text-center text-white/45">Nenhum resultado na busca.</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ClubeVipTab({
+  adminFetch,
+  setBusy,
+  busy,
+  setMsg,
+}: {
+  adminFetch: AdminFetch;
+  setBusy: (v: boolean) => void;
+  busy: boolean;
+  setMsg: (s: string | null) => void;
+}) {
+  const [rows, setRows] = useState<Array<{ id: string; email: string; createdAt: string }>>(
+    [],
+  );
+  const [refreshing, setRefreshing] = useState(false);
+
+  const load = useCallback(async () => {
+    setRefreshing(true);
+    setMsg(null);
+    try {
+      const r = await adminFetch("/api/admin/vip-leads");
+      if (r.status === 401) {
+        sessionStorage.removeItem(TOKEN_KEY);
+        window.location.reload();
+        return;
+      }
+      if (!r.ok) {
+        setMsg("Não foi possível carregar os leads.");
+        return;
+      }
+      setRows(await r.json());
+    } finally {
+      setRefreshing(false);
+    }
+  }, [adminFetch, setMsg]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const remove = async (id: string) => {
+    if (!confirm("Remover este e-mail da lista do Clube VIP?")) return;
+    setBusy(true);
+    setMsg(null);
+    try {
+      const r = await adminFetch(`/api/admin/vip-leads/${id}`, { method: "DELETE" });
+      if (!r.ok) {
+        setMsg("Falha ao remover.");
+        return;
+      }
+      setMsg("Lead removido.");
+      load();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-semibold">Clube VIP</h2>
+          <p className="mt-1 text-sm text-white/50">
+            E-mails capturados pelo site (descontos e novidades). Exporte manualmente se precisar
+            integrar com e-mail marketing.
+          </p>
+        </div>
+        <button
+          type="button"
+          disabled={refreshing}
+          onClick={() => void load()}
+          className="rounded-lg border border-white/20 px-4 py-2 text-sm hover:bg-white/5 disabled:opacity-50"
+        >
+          {refreshing ? "Carregando…" : "Atualizar"}
+        </button>
+      </div>
+      <div className="overflow-x-auto rounded-xl border border-white/10">
+        <table className="w-full min-w-[480px] text-left text-sm">
+          <thead className="border-b border-white/10 bg-navy-light/80 text-xs uppercase tracking-wider text-white/50">
+            <tr>
+              <th className="px-4 py-3">E-mail</th>
+              <th className="px-4 py-3">Data</th>
+              <th className="px-4 py-3" />
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.id} className="border-b border-white/5 hover:bg-white/[0.02]">
+                <td className="px-4 py-3 font-medium text-white/90">{row.email}</td>
+                <td className="px-4 py-3 text-white/45">{fmtDate(row.createdAt)}</td>
+                <td className="px-4 py-3">
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => remove(row.id)}
+                    className="text-xs text-red-300 hover:underline disabled:opacity-50"
+                  >
+                    Remover
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {rows.length === 0 && (
+          <p className="p-8 text-center text-white/45">Nenhum cadastro no Clube VIP.</p>
         )}
       </div>
     </div>
@@ -643,9 +914,11 @@ function DisponibilidadeTab({
   const [endDay, setEndDay] = useState("");
   const [reason, setReason] = useState("");
   const [err, setErr] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
-    setBusy(true);
+    setRefreshing(true);
+    setMsg(null);
     try {
       const r = await adminFetch("/api/admin/availability");
       if (r.status === 401) {
@@ -653,12 +926,15 @@ function DisponibilidadeTab({
         window.location.reload();
         return;
       }
-      if (!r.ok) throw new Error();
+      if (!r.ok) {
+        setMsg("Não foi possível carregar a disponibilidade.");
+        return;
+      }
       setData(await r.json());
     } finally {
-      setBusy(false);
+      setRefreshing(false);
     }
-  }, [adminFetch, setBusy]);
+  }, [adminFetch, setMsg]);
 
   useEffect(() => {
     load();
@@ -742,11 +1018,11 @@ function DisponibilidadeTab({
         </p>
         <button
           type="button"
-          disabled={busy}
-          onClick={() => load()}
-          className="mt-4 rounded-lg border border-white/20 px-4 py-2 text-sm hover:bg-white/5"
+          disabled={refreshing}
+          onClick={() => void load()}
+          className="mt-4 rounded-lg border border-white/20 px-4 py-2 text-sm hover:bg-white/5 disabled:opacity-50"
         >
-          Atualizar
+          {refreshing ? "Carregando…" : "Atualizar"}
         </button>
       </div>
 
@@ -964,9 +1240,13 @@ function FrotaTab({
     description: "",
     fleetStatus: "AVAILABLE" as string,
   });
+  const [listLoading, setListLoading] = useState(false);
+  const novaSectionRef = useRef<HTMLElement | null>(null);
+  const nomeInputRef = useRef<HTMLInputElement | null>(null);
 
   const load = useCallback(async () => {
-    setBusy(true);
+    setListLoading(true);
+    setMsg(null);
     try {
       const r = await adminFetch("/api/admin/vehicles");
       if (r.status === 401) {
@@ -974,12 +1254,15 @@ function FrotaTab({
         window.location.reload();
         return;
       }
-      if (!r.ok) throw new Error();
+      if (!r.ok) {
+        setMsg("Não foi possível carregar a frota.");
+        return;
+      }
       setRows(await r.json());
     } finally {
-      setBusy(false);
+      setListLoading(false);
     }
-  }, [adminFetch, setBusy]);
+  }, [adminFetch, setMsg]);
 
   useEffect(() => {
     load();
@@ -1015,7 +1298,7 @@ function FrotaTab({
         fleetStatus: "AVAILABLE",
       });
       setMsg("Embarcação cadastrada.");
-      load();
+      await load();
     } finally {
       setBusy(false);
     }
@@ -1034,7 +1317,7 @@ function FrotaTab({
         return;
       }
       setMsg("Status da frota atualizado.");
-      load();
+      await load();
     } finally {
       setBusy(false);
     }
@@ -1055,26 +1338,133 @@ function FrotaTab({
         return;
       }
       setMsg("Embarcação excluída.");
-      load();
+      await load();
     } finally {
       setBusy(false);
     }
   };
 
+  const focusNovaEmbarcacao = () => {
+    novaSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    window.setTimeout(() => nomeInputRef.current?.focus(), 300);
+  };
+
   return (
     <div className="space-y-10">
-      <div>
-        <div className="mb-6 flex items-center justify-between gap-4">
-          <h2 className="text-xl font-semibold">Frota</h2>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <h2 className="text-xl font-semibold">Frota</h2>
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
-            disabled={busy}
-            onClick={() => load()}
-            className="rounded-lg border border-white/20 px-4 py-2 text-sm hover:bg-white/5"
+            disabled={listLoading}
+            onClick={() => void load()}
+            className="rounded-lg border border-white/20 px-4 py-2 text-sm hover:bg-white/5 disabled:opacity-50"
           >
-            Atualizar
+            {listLoading ? "Carregando…" : "Atualizar lista"}
+          </button>
+          <button
+            type="button"
+            onClick={focusNovaEmbarcacao}
+            className="rounded-lg bg-ocean px-4 py-2 text-sm font-semibold text-white hover:bg-ocean-light"
+          >
+            Adicionar embarcação
           </button>
         </div>
+      </div>
+
+      <section
+        ref={novaSectionRef}
+        id="admin-frota-nova"
+        className="rounded-xl border border-ocean/30 bg-navy-light/30 p-6"
+      >
+        <h3 className="font-semibold text-ocean-light">Nova embarcação</h3>
+        <p className="mt-1 text-sm text-white/45">
+          Preencha os dados e clique em salvar para incluir na frota disponível para reserva.
+        </p>
+        <form onSubmit={create} className="mt-6">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="sm:col-span-2">
+            <label className="text-xs uppercase tracking-wider text-white/45">Nome</label>
+            <input
+              ref={nomeInputRef}
+              required
+              value={form.name}
+              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+              className="mt-1 w-full rounded-lg border border-white/15 bg-navy-dark px-3 py-2 text-sm"
+            />
+            </div>
+            <div>
+            <label className="text-xs uppercase tracking-wider text-white/45">Tipo</label>
+            <select
+              value={form.type}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, type: e.target.value as "LANCHA" | "JETSKI" }))
+              }
+              className="mt-1 w-full rounded-lg border border-white/15 bg-navy-dark px-3 py-2 text-sm"
+            >
+              <option value="LANCHA">Lancha</option>
+              <option value="JETSKI">Jetski</option>
+            </select>
+            </div>
+            <div>
+            <label className="text-xs uppercase tracking-wider text-white/45">Status inicial</label>
+            <select
+              value={form.fleetStatus}
+              onChange={(e) => setForm((f) => ({ ...f, fleetStatus: e.target.value }))}
+              className="mt-1 w-full rounded-lg border border-white/15 bg-navy-dark px-3 py-2 text-sm"
+            >
+              {Object.entries(FLEET_LABEL).map(([k, label]) => (
+                <option key={k} value={k}>
+                  {label}
+                </option>
+              ))}
+            </select>
+            </div>
+            <div>
+            <label className="text-xs uppercase tracking-wider text-white/45">Preço / hora</label>
+            <input
+              required
+              type="number"
+              min={0}
+              step={0.01}
+              value={form.pricePerHour}
+              onChange={(e) => setForm((f) => ({ ...f, pricePerHour: e.target.value }))}
+              className="mt-1 w-full rounded-lg border border-white/15 bg-navy-dark px-3 py-2 text-sm"
+            />
+            </div>
+            <div>
+            <label className="text-xs uppercase tracking-wider text-white/45">Capacidade</label>
+            <input
+              required
+              type="number"
+              min={1}
+              value={form.capacity}
+              onChange={(e) => setForm((f) => ({ ...f, capacity: e.target.value }))}
+              className="mt-1 w-full rounded-lg border border-white/15 bg-navy-dark px-3 py-2 text-sm"
+            />
+            </div>
+            <div className="sm:col-span-2">
+            <label className="text-xs uppercase tracking-wider text-white/45">Descrição</label>
+            <textarea
+              rows={2}
+              value={form.description}
+              onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+              className="mt-1 w-full resize-none rounded-lg border border-white/15 bg-navy-dark px-3 py-2 text-sm"
+            />
+            </div>
+          </div>
+        <button
+          type="submit"
+          disabled={busy}
+          className="mt-6 rounded-full bg-ocean px-8 py-3 text-sm font-semibold uppercase tracking-widest hover:bg-ocean-light disabled:opacity-50"
+        >
+          Salvar embarcação
+        </button>
+        </form>
+      </section>
+
+      <div>
+        <h3 className="mb-4 text-lg font-semibold text-white/90">Embarcações cadastradas</h3>
         <div className="overflow-x-auto rounded-xl border border-white/10">
           <table className="w-full min-w-[800px] text-left text-sm">
             <thead className="border-b border-white/10 bg-navy-light/80 text-xs uppercase tracking-wider text-white/50">
@@ -1124,95 +1514,11 @@ function FrotaTab({
               ))}
             </tbody>
           </table>
-          {rows.length === 0 && (
-            <p className="p-8 text-center text-white/45">Nenhuma embarcação.</p>
+          {rows.length === 0 && !listLoading && (
+            <p className="p-8 text-center text-white/45">Nenhuma embarcação cadastrada.</p>
           )}
         </div>
       </div>
-
-      <form
-        onSubmit={create}
-        className="rounded-xl border border-white/10 bg-navy-light/30 p-6"
-      >
-        <h3 className="font-semibold">Nova embarcação</h3>
-        <div className="mt-6 grid gap-4 sm:grid-cols-2">
-          <div className="sm:col-span-2">
-            <label className="text-xs uppercase tracking-wider text-white/45">Nome</label>
-            <input
-              required
-              value={form.name}
-              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-              className="mt-1 w-full rounded-lg border border-white/15 bg-navy-dark px-3 py-2 text-sm"
-            />
-          </div>
-          <div>
-            <label className="text-xs uppercase tracking-wider text-white/45">Tipo</label>
-            <select
-              value={form.type}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, type: e.target.value as "LANCHA" | "JETSKI" }))
-              }
-              className="mt-1 w-full rounded-lg border border-white/15 bg-navy-dark px-3 py-2 text-sm"
-            >
-              <option value="LANCHA">Lancha</option>
-              <option value="JETSKI">Jetski</option>
-            </select>
-          </div>
-          <div>
-            <label className="text-xs uppercase tracking-wider text-white/45">Status inicial</label>
-            <select
-              value={form.fleetStatus}
-              onChange={(e) => setForm((f) => ({ ...f, fleetStatus: e.target.value }))}
-              className="mt-1 w-full rounded-lg border border-white/15 bg-navy-dark px-3 py-2 text-sm"
-            >
-              {Object.entries(FLEET_LABEL).map(([k, label]) => (
-                <option key={k} value={k}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="text-xs uppercase tracking-wider text-white/45">Preço / hora</label>
-            <input
-              required
-              type="number"
-              min={0}
-              step={0.01}
-              value={form.pricePerHour}
-              onChange={(e) => setForm((f) => ({ ...f, pricePerHour: e.target.value }))}
-              className="mt-1 w-full rounded-lg border border-white/15 bg-navy-dark px-3 py-2 text-sm"
-            />
-          </div>
-          <div>
-            <label className="text-xs uppercase tracking-wider text-white/45">Capacidade</label>
-            <input
-              required
-              type="number"
-              min={1}
-              value={form.capacity}
-              onChange={(e) => setForm((f) => ({ ...f, capacity: e.target.value }))}
-              className="mt-1 w-full rounded-lg border border-white/15 bg-navy-dark px-3 py-2 text-sm"
-            />
-          </div>
-          <div className="sm:col-span-2">
-            <label className="text-xs uppercase tracking-wider text-white/45">Descrição</label>
-            <textarea
-              rows={2}
-              value={form.description}
-              onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-              className="mt-1 w-full resize-none rounded-lg border border-white/15 bg-navy-dark px-3 py-2 text-sm"
-            />
-          </div>
-        </div>
-        <button
-          type="submit"
-          disabled={busy}
-          className="mt-6 rounded-full bg-ocean px-8 py-3 text-sm font-semibold uppercase tracking-widest hover:bg-ocean-light disabled:opacity-50"
-        >
-          Cadastrar
-        </button>
-      </form>
     </div>
   );
 }

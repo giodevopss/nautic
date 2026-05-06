@@ -4,11 +4,12 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
 }
 
 model Customer {
-  id           String        @id @default(cuid())
+  id           String        @id @default(cuid()) @map("_id")
   name         String
   email        String        @unique
   phone        String
@@ -22,7 +23,7 @@ model Customer {
 
 /// E-mails capturados pelo modal “Clube VIP” (marketing / descontos)
 model VipLead {
-  id        String   @id @default(cuid())
+  id        String   @id @default(cuid()) @map("_id")
   email     String   @unique
   createdAt DateTime @default(now())
 
@@ -30,7 +31,7 @@ model VipLead {
 }
 
 model Vehicle {
-  id           String        @id @default(cuid())
+  id           String        @id @default(cuid()) @map("_id")
   name         String
   type         String        // LANCHA | JETSKI
   description  String?
@@ -48,7 +49,7 @@ model Vehicle {
 }
 
 model DateBlock {
-  id         String   @id @default(cuid())
+  id         String   @id @default(cuid()) @map("_id")
   /// null = bloqueio para toda a frota
   vehicleId  String?
   startDate  DateTime
@@ -62,7 +63,7 @@ model DateBlock {
 }
 
 model Reservation {
-  id         String   @id @default(cuid())
+  id         String   @id @default(cuid()) @map("_id")
   customerId String
   vehicleId  String
   startDate  DateTime

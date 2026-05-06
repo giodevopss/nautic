@@ -94,6 +94,22 @@ router.patch("/customers/:id", async (req, res) => {
   }
 });
 
+router.get("/vip-leads", async (_req, res) => {
+  const list = await prisma.vipLead.findMany({
+    orderBy: { createdAt: "desc" },
+  });
+  res.json(list);
+});
+
+router.delete("/vip-leads/:id", async (req, res) => {
+  try {
+    await prisma.vipLead.delete({ where: { id: req.params.id } });
+    res.status(204).send();
+  } catch {
+    res.status(400).json({ error: "Lead não encontrado." });
+  }
+});
+
 router.delete("/customers/:id", async (req, res) => {
   try {
     const count = await prisma.reservation.count({

@@ -8,14 +8,14 @@ import adminRouter from "./routes/admin";
 import authRouter from "./routes/auth";
 
 const app = express();
-const PORT = Number(process.env.API_PORT) || 3001;
+const PORT = Number(process.env.PORT || process.env.API_PORT) || 3001;
 
 app.use(cors());
 app.use(express.json());
 
 app.get("/api/health", async (_req, res) => {
   try {
-    await prisma.$queryRaw`SELECT 1`;
+    await prisma.$connect();
     res.json({ status: "ok", database: "connected", timestamp: new Date() });
   } catch {
     res
@@ -29,6 +29,6 @@ app.use("/api/auth", authRouter);
 app.use("/api/vehicles", vehiclesRouter);
 app.use("/api/reservations", reservationsRouter);
 
-app.listen(PORT, () => {
-  console.log(`API server running on http://localhost:${PORT}`);
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`API server listening on port ${PORT}`);
 });

@@ -16,31 +16,32 @@ echo -e "${BLUE}   CLUBE NAUTICO - Starting services    ${NC}"
 echo -e "${BLUE}========================================${NC}"
 echo ""
 
-# ── 1. Prisma generate ────────────────────────────────────
+if [ -z "${DATABASE_URL:-}" ] || [[ "${DATABASE_URL}" != mongodb* ]]; then
+  warn "Defina DATABASE_URL com uma URI MongoDB (ex.: mongodb://127.0.0.1:27017/nautic ou Atlas)."
+  exit 1
+fi
+
+# ── 1. Prisma ──────────────────────────────────────────────
 log "DB" "Generating Prisma client..."
-npx prisma generate --no-hints 2>/dev/null
+npx prisma generate
 
 ok "Prisma client generated"
 
-# ── 2. Database migrations ────────────────────────────────
-log "DB" "Running migrations (SQLite)..."
-npx prisma migrate dev --skip-generate --name init 2>/dev/null || npx prisma migrate deploy 2>/dev/null
+log "DB" "Synchronizing schema (prisma db push)…"
+npx prisma db push
 
-ok "Database schema is up to date"
+ok "MongoDB schema applied"
 
-# ── 3. Seed if empty ─────────────────────────────────────
-log "DB" "Checking for seed data..."
-npx tsx prisma/seed.ts 2>/dev/null
+log "DB" "Seeding demo data (frota inicial)…"
+npx tsx prisma/seed.ts || warn "Seed skipped or failed."
 
 ok "Database ready"
 
-# ── 4. Start API + Frontend ──────────────────────────────
+# ── 2. Start API + Frontend ───────────────────────────────
 echo ""
 log "APP" "Starting API server (port ${API_PORT:-3001}) and Frontend (port 3000)..."
 echo ""
 
-# API: use `node --import tsx` (not the tsx CLI). The tsx CLI spawns a child
-# that can exit with 0 right away under concurrently, killing both processes.
 ./node_modules/.bin/concurrently \
   --names "API,WEB" \
   --prefix "[{name}]" \
