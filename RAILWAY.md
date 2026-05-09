@@ -52,7 +52,7 @@ Após deploy, copie a **URL pública** do serviço (ex.: `https://api-xxx.up.rai
 
    **`NEXT_PUBLIC_MEDIA_URL`** — URL base pública **sem barra final**, apontando para onde os ficheiros ficam acessíveis por HTTPS (pode ser diferente do endpoint da API S3 `t3.storageapi.dev`).
 
-Os componentes combinam esse prefixo com paths como `/videos/…` e `/images/…`. Sem a variável, o site usa ficheiros em `public/` (útil só em desenvolvimento).
+Os componentes combinam esse prefixo com paths como `/videos/…` e `/images/…`. Sem a variável, o site usa ficheiros em `public/` — por exemplo vídeos em `public/videos/` se estiverem no repositório.
 
 Outras variáveis no Web (se o código precisar no servidor):
 

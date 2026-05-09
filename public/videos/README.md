@@ -1,8 +1,8 @@
 # Vídeos
 
-Os `.mp4` costumam estar no `.gitignore` por tamanho.
+Coloque os `.mp4` aqui (`public/videos/`) e **faça commit** — o Next serve-os em `/videos/...` em desenvolvimento e em produção (Railway) sem CDN.
 
-Em **produção**, suba-os para um **Railway Bucket** (ou CDN) mantendo paths como `videos/aluguel-lancha.mp4` e configure `NEXT_PUBLIC_MEDIA_URL` no build do Next (ver `RAILWAY.md` e `.env.example`).
+Opcionalmente, para não aumentar o repositório, use **Railway Bucket** (ou CDN) com os mesmos paths e configure `NEXT_PUBLIC_MEDIA_URL` no build (`RAILWAY.md`, `.env.example`).
 
 ## Hero (alternância)
 

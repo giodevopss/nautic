@@ -39,9 +39,6 @@ yarn-error.log*
 *.db
 *.db-journal
 
-# videos (large files)
-public/videos/*.mp4
-
 # vercel
 .vercel
 
