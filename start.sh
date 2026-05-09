@@ -21,6 +21,12 @@ if [ -z "${DATABASE_URL:-}" ] || [[ "${DATABASE_URL}" != mongodb* ]]; then
   exit 1
 fi
 
+# Railway às vezes omite /dbname — o Prisma exige; normaliza antes de qualquer prisma *
+export DATABASE_URL="$(npx tsx scripts/print-normalized-database-url.ts)" || {
+  warn "Falha ao normalizar DATABASE_URL (Mongo com /dbname)."
+  exit 1
+}
+
 # ── 1. Prisma ──────────────────────────────────────────────
 log "DB" "Generating Prisma client..."
 npx prisma generate
