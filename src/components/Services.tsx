@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import Image from "next/image";
+import { mediaUrl } from "@/lib/media";
 
 type ServiceItem = {
   title: string;
@@ -102,7 +103,7 @@ function ServiceCard({
             aria-label={service.alt}
           >
             <source
-              src={service.video}
+              src={mediaUrl(service.video)}
               type={
                 service.video.toLowerCase().endsWith(".mov")
                   ? "video/quicktime"
@@ -112,7 +113,7 @@ function ServiceCard({
           </video>
         ) : (
           <Image
-            src={service.image!}
+            src={mediaUrl(service.image!)}
             alt={service.alt}
             fill
             className="object-cover transition-transform duration-700 group-hover:scale-110"

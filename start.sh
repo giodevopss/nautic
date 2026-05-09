@@ -28,7 +28,7 @@ npx prisma generate
 ok "Prisma client generated"
 
 log "DB" "Synchronizing schema (prisma db push)…"
-npx prisma db push
+npx tsx scripts/prisma-db-push.ts
 
 ok "MongoDB schema applied"
 

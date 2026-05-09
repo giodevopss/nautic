@@ -8,9 +8,10 @@
     "start": "bash start.sh",
     "start:api": "node --import tsx server/index.ts",
     "start:web": "next dev",
-    "db:push": "prisma db push",
+    "db:push": "npx tsx scripts/prisma-db-push.ts",
     "db:seed": "npx tsx prisma/seed.ts",
     "db:studio": "npx prisma studio",
+    "upload:media": "npx tsx scripts/upload-media-tigris.ts",
     "lint": "eslint",
     "prod": "next start -H 0.0.0.0"
   },
@@ -30,6 +31,7 @@
     "react-dom": "19.2.4"
   },
   "devDependencies": {
+    "@aws-sdk/client-s3": "^3.962.0",
     "@tailwindcss/postcss": "^4",
     "@types/bcryptjs": "^2.4.6",
     "@types/cors": "^2.8.19",

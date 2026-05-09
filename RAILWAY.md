@@ -5,8 +5,12 @@ Este app tem **dois processos**: API Express (`server/`) e frontend Next (`src/`
 ## 1. Banco MongoDB
 
 1. No projeto Railway: **New** → **Database** → **MongoDB** (plugin oficial), **ou** use [MongoDB Atlas](https://www.mongodb.com/atlas) e copie a connection string.
-2. A URI deve incluir nome do banco, por exemplo:  
-   `mongodb://user:pass@host:port/nautic?retryWrites=true&w=majority`
+2. A URI **deve incluir o nome da base** após host/porta (`/nautic`, etc.). O Prisma erro **P1013** aparece se faltar esse segmento — o Railway às vezes expõe só `mongodb://…railway.internal:27017`.  
+   **Opção A:** acrescente `/nautic` (ou o nome que preferir) na própria variável `DATABASE_URL`.  
+   **Opção B:** deixe como está e defina `MONGO_DATABASE` ou use o default `nautic`; o script `scripts/prisma-db-push.ts` e o carregamento da API corrigem automaticamente.
+   
+   Exemplo completo:  
+   `mongodb://user:pass@host:port/nautic?authSource=admin&retryWrites=true&w=majority`
 
 ## 2. Serviço **API**
 
@@ -14,7 +18,8 @@ Este app tem **dois processos**: API Express (`server/`) e frontend Next (`src/`
 - **Build command**:  
   `npm ci && npx prisma generate`
 - **Start command**:  
-  `npx prisma db push && node --import tsx server/index.ts`
+  `npx tsx scripts/prisma-db-push.ts && node --import tsx server/index.ts`  
+  (o script corrige `DATABASE_URL` sem `/dbname` antes do `db push`.)
 - **Variáveis de ambiente**:
   - `DATABASE_URL` — mesma URI do Mongo (referência ao plugin MongoDB do Railway ou string da Atlas).
   - `ADMIN_SECRET`, `AUTH_SECRET` — valores fortes em produção.
@@ -34,6 +39,20 @@ Após deploy, copie a **URL pública** do serviço (ex.: `https://api-xxx.up.rai
 **Importante**: defina **`NEXT_PUBLIC_API_URL`** antes do build, apontando para a URL **pública** da API do passo 2 (sem barra final), por exemplo:
 
 `https://api-xxx.up.railway.app`
+
+### Mídia (Railway Bucket / Tigris)
+
+1. Envie `public/videos/` e `public/images/` com o script local (S3-compatível):
+   - Configure `STORAGE_ACCESS_KEY`, `STORAGE_SECRET_KEY` no `.env` (chaves do painel Railway/Tigris).
+   - Teste: `npm run upload:media -- --dry-run`
+   - Envio: `npm run upload:media`
+   - Defaults: endpoint `https://t3.storageapi.dev`, bucket `wrapped-pannikin-ta6us77k` (sobrescreva com `STORAGE_ENDPOINT` / `STORAGE_BUCKET` se mudar).
+2. Garanta leitura **pública** nos objetos ou use a **URL pública** que o Railway mostra para servir ficheiros ao browser.
+3. No serviço **Web**, defina antes do **`npm run build`**:
+
+   **`NEXT_PUBLIC_MEDIA_URL`** — URL base pública **sem barra final**, apontando para onde os ficheiros ficam acessíveis por HTTPS (pode ser diferente do endpoint da API S3 `t3.storageapi.dev`).
+
+Os componentes combinam esse prefixo com paths como `/videos/…` e `/images/…`. Sem a variável, o site usa ficheiros em `public/` (útil só em desenvolvimento).
 
 Outras variáveis no Web (se o código precisar no servidor):
 

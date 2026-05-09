@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { motion } from "framer-motion";
+import { mediaUrl } from "@/lib/media";
 
 export default function About() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -66,7 +67,7 @@ export default function About() {
                 playsInline
                 preload="auto"
               >
-                <source src="/videos/quem-somos-lancha.mp4" type="video/mp4" />
+                <source src={mediaUrl("/videos/quem-somos-lancha.mp4")} type="video/mp4" />
               </video>
               <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-navy/60 to-transparent" />
             </div>

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
+import { mediaUrl } from "@/lib/media";
 
 /** Galeria de clientes — ordem misturada */
 const CLIENT_GALLERY = [
@@ -114,7 +115,7 @@ function ClientPhoto({
   return (
     <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl ring-2 ring-white/10">
       <Image
-        src={src}
+        src={mediaUrl(src)}
         alt={alt}
         fill
         className="object-cover"
@@ -245,7 +246,7 @@ export default function TrustShowcase() {
                   <div className="overflow-hidden rounded-[15px] bg-navy-dark ring-1 ring-white/5">
                     <div className="relative overflow-hidden">
                       <Image
-                        src={src}
+                        src={mediaUrl(src)}
                         alt={`Clientes Clube Náutico — momento ${i + 1}`}
                         width={900}
                         height={1200}

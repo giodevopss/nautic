@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { motion, useInView } from "framer-motion";
+import { mediaUrl } from "@/lib/media";
 
 const HERO_STATS = [
   {
@@ -183,7 +184,7 @@ export default function Hero() {
                 preload={i === 0 ? "auto" : "metadata"}
                 aria-hidden
               >
-                <source src={video.src} type="video/mp4" />
+                <source src={mediaUrl(video.src)} type="video/mp4" />
               </video>
             );
           })}
