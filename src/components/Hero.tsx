@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, useInView } from "framer-motion";
-import { mediaUrl } from "@/lib/media";
+
+import RotatingMutedVideos from "./RotatingMutedVideos";
 
 const HERO_STATS = [
   {
@@ -98,61 +99,20 @@ function StatCounter({
   );
 }
 
+/** Vários clipes em ciclo — ajuste paths em `public/videos/` */
 const HERO_VIDEOS = [
-  { src: "/videos/vid-20251215-151804.mp4", label: "vid-20251215" },
-  { src: "/videos/vid-20251207-164840.mp4", label: "vid-20251207" },
-  { src: "/videos/lanchas1.mp4", label: "lanchas1" },
-  { src: "/videos/pwc.mp4", label: "pwc" },
+  { src: "/videos/vid-20251215-151804.mp4", label: "hero-a" },
+  { src: "/videos/vid-20251207-164840.mp4", label: "hero-b" },
+  { src: "/videos/lanchas1.mp4", label: "hero-c" },
+  { src: "/videos/pwc.mp4", label: "hero-d" },
+  { src: "/videos/passeios-personalizados.mp4", label: "hero-e" },
+  { src: "/videos/quem-somos-lancha.mp4", label: "hero-f" },
 ] as const;
 
 /** Teto por clipe — vídeos longos não ficam eternos */
 const MAX_CLIP_MS = 15_000;
 
 export default function Hero() {
-  const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
-  const [activeIndex, setActiveIndex] = useState(0);
-
-  const advance = useCallback(() => {
-    setActiveIndex((i) => (i + 1) % HERO_VIDEOS.length);
-  }, []);
-
-  /* Play/pause: só o ativo toca */
-  useEffect(() => {
-    videoRefs.current.forEach((v, i) => {
-      if (!v) return;
-      if (i === activeIndex) {
-        v.currentTime = 0;
-        v.muted = true;
-        v.play().catch(() => {});
-      } else {
-        v.pause();
-        v.currentTime = 0;
-      }
-    });
-  }, [activeIndex]);
-
-  /* Avança quando o clipe termina OU atinge o teto */
-  useEffect(() => {
-    const v = videoRefs.current[activeIndex];
-    let done = false;
-
-    const next = () => {
-      if (done) return;
-      done = true;
-      advance();
-    };
-
-    const cap = window.setTimeout(next, MAX_CLIP_MS);
-
-    const onEnded = () => next();
-    v?.addEventListener("ended", onEnded);
-
-    return () => {
-      window.clearTimeout(cap);
-      v?.removeEventListener("ended", onEnded);
-    };
-  }, [activeIndex, advance]);
-
   const reveal = {
     initial: { opacity: 0, y: 28 },
     whileInView: { opacity: 1, y: 0 },
@@ -168,26 +128,14 @@ export default function Hero() {
       >
         {/* --- Camada 1: vídeos empilhados --- */}
         <div className="absolute inset-0 overflow-hidden">
-          {HERO_VIDEOS.map((video, i) => {
-            const isActive = activeIndex === i;
-            return (
-              <video
-                key={video.label}
-                ref={(el) => {
-                  videoRefs.current[i] = el;
-                }}
-                className={`pointer-events-none absolute inset-0 h-full w-full object-cover transition-opacity duration-[1800ms] ease-in-out ${
-                  isActive ? "opacity-100" : "opacity-0"
-                }`}
-                muted
-                playsInline
-                preload={i === 0 ? "auto" : "metadata"}
-                aria-hidden
-              >
-                <source src={mediaUrl(video.src)} type="video/mp4" />
-              </video>
-            );
-          })}
+          <RotatingMutedVideos
+            clips={HERO_VIDEOS}
+            maxClipMs={MAX_CLIP_MS}
+            fadeMs={1800}
+            preloadFirst="auto"
+            videoClassName="pointer-events-none absolute inset-0 h-full w-full object-cover"
+            aria-hidden
+          />
         </div>
 
         {/* --- Camada 2: máscara — fundo preto + texto branco + mix-blend-multiply --- */}

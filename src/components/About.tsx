@@ -1,16 +1,20 @@
 "use client";
 
-import { useEffect, useRef } from "react";
 import { motion } from "framer-motion";
-import { mediaUrl } from "@/lib/media";
+
+import RotatingMutedVideos from "./RotatingMutedVideos";
+
+/** Ciclo ao lado do texto “Quem somos” — acrescente mais paths em `public/videos/` */
+const ABOUT_VIDEOS = [
+  { src: "/videos/quem-somos-lancha.mp4", label: "about-1" },
+  { src: "/videos/lanchas1.mp4", label: "about-2" },
+  { src: "/videos/vid-20251207-164840.mp4", label: "about-3" },
+  { src: "/videos/passeios-personalizados.mp4", label: "about-4" },
+] as const;
+
+const ABOUT_CLIP_MS = 14_000;
 
 export default function About() {
-  const videoRef = useRef<HTMLVideoElement>(null);
-
-  useEffect(() => {
-    videoRef.current?.play().catch(() => {});
-  }, []);
-
   return (
     <section id="quem-somos" className="relative overflow-x-clip bg-navy py-24 lg:py-32">
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
@@ -46,10 +50,9 @@ export default function About() {
                 para transformar seu dia em uma experiência única.
               </p>
             </div>
-
           </motion.div>
 
-          {/* Vídeo: lancha com pessoas */}
+          {/* Vídeos em ciclo */}
           <motion.div
             initial={{ opacity: 0, x: 40 }}
             whileInView={{ opacity: 1, x: 0 }}
@@ -58,17 +61,13 @@ export default function About() {
             className="relative"
           >
             <div className="relative aspect-[4/5] overflow-hidden rounded-2xl bg-navy-dark">
-              <video
-                ref={videoRef}
-                className="absolute inset-0 h-full w-full object-cover"
-                autoPlay
-                muted
-                loop
-                playsInline
-                preload="auto"
-              >
-                <source src={mediaUrl("/videos/quem-somos-lancha.mp4")} type="video/mp4" />
-              </video>
+              <RotatingMutedVideos
+                clips={ABOUT_VIDEOS}
+                maxClipMs={ABOUT_CLIP_MS}
+                fadeMs={1500}
+                preloadFirst="auto"
+                videoClassName="absolute inset-0 h-full w-full object-cover"
+              />
               <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-navy/60 to-transparent" />
             </div>
             <div className="absolute -bottom-6 -left-6 h-24 w-24 rounded-2xl border-2 border-ocean/30" />

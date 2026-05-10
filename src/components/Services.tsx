@@ -2,6 +2,10 @@
 
 import { motion } from "framer-motion";
 import Image from "next/image";
+
+import RotatingMutedVideos, {
+  type RotatingClip,
+} from "./RotatingMutedVideos";
 import { mediaUrl } from "@/lib/media";
 
 type ServiceItem = {
@@ -10,17 +14,32 @@ type ServiceItem = {
   reserveHref: string;
   alt: string;
   image?: string;
-  video?: string;
+  /** Um ou vários vídeos em ciclo no cartão */
+  videos?: readonly string[];
   /** Se omitido, usa “Reservar online” */
   linkLabel?: string;
 };
+
+function serviceClips(service: ServiceItem): RotatingClip[] {
+  if (!service.videos?.length) return [];
+  return service.videos.map((src, i) => ({
+    src,
+    label: `${service.title}-${i}`,
+  }));
+}
+
+const SERVICE_CLIP_MS = 12_000;
 
 const services: ServiceItem[] = [
   {
     title: "Aluguel de Lanchas",
     description:
       "Navegue com estilo e conforto em nossas lanchas premium. Ideal para passeios em família, eventos ou momentos especiais no mar.",
-    video: "/videos/aluguel-lancha.mp4",
+    videos: [
+      "/videos/aluguel-lancha.mp4",
+      "/videos/lanchas1.mp4",
+      "/videos/vid-20251215-151804.mp4",
+    ],
     alt: "Vídeo — passeio de lancha no mar",
     reserveHref: "/reservar?tipo=lancha",
   },
@@ -28,7 +47,11 @@ const services: ServiceItem[] = [
     title: "Aluguel de Jetski",
     description:
       "Sinta a adrenalina e a liberdade em nossos PWC (personal watercraft). Passeio em jet ski aquático com total segurança.",
-    video: "/videos/aluguel-jetski.mp4",
+    videos: [
+      "/videos/aluguel-jetski.mp4",
+      "/videos/pwc.mp4",
+      "/videos/vid-20251207-164840.mp4",
+    ],
     alt: "Vídeo — passeio de jetski no mar",
     reserveHref: "/reservar?tipo=jetski",
   },
@@ -36,7 +59,11 @@ const services: ServiceItem[] = [
     title: "Passeios Personalizados",
     description:
       "Roteiros exclusivos sob medida para você. Celebrações, pôr do sol no mar ou expedições — nós planejamos tudo.",
-    video: "/videos/passeios-personalizados.mp4",
+    videos: [
+      "/videos/passeios-personalizados.mp4",
+      "/videos/quem-somos-lancha.mp4",
+      "/videos/aluguel-lancha.mp4",
+    ],
     alt: "Vídeo — passeios personalizados e experiências no mar",
     reserveHref: "/reservar",
   },
@@ -44,7 +71,10 @@ const services: ServiceItem[] = [
     title: "Mecânica náutica",
     description:
       "Manutenção e reparo de embarcações e motores aquáticos. Diagnóstico, revisão preventiva e suporte para sua frota ou lancha particular com profissionais experientes.",
-    video: "/videos/mecanica-nautica.mp4",
+    videos: [
+      "/videos/mecanica-nautica.mp4",
+      "/videos/passeios-personalizados.mp4",
+    ],
     alt: "Vídeo — mecânica náutica e manutenção de embarcações",
     reserveHref: "/#contato",
     linkLabel: "Fale conosco",
@@ -53,7 +83,11 @@ const services: ServiceItem[] = [
     title: "Habilitação náutica",
     description:
       "Preparação para obter sua habilitação (carteira náutica) com orientação prática e teórica. Atenda à legislação e pilote com segurança e confiança.",
-    video: "/videos/habn.mp4",
+    videos: [
+      "/videos/habn.mp4",
+      "/videos/habilitacao-nautica.mp4",
+      "/videos/lanchas1.mp4",
+    ],
     alt: "Vídeo — habilitação e formação náutica",
     reserveHref: "/#contato",
     linkLabel: "Fale conosco",
@@ -83,6 +117,7 @@ function ServiceCard({
     : "rounded-2xl border border-white/5";
 
   const lift = compact ? "hover:-translate-y-1" : "hover:-translate-y-2";
+  const clips = serviceClips(service);
 
   return (
     <motion.div
@@ -92,25 +127,19 @@ function ServiceCard({
       <div
         className={`relative overflow-hidden ${compact ? "h-52 sm:h-56" : "h-64"}`}
       >
-        {service.video ? (
-          <video
-            className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
-            autoPlay
-            muted
-            loop
-            playsInline
-            preload="metadata"
+        {clips.length > 0 ? (
+          <div
+            className="absolute inset-0 overflow-hidden transition-transform duration-700 group-hover:scale-110"
             aria-label={service.alt}
           >
-            <source
-              src={mediaUrl(service.video)}
-              type={
-                service.video.toLowerCase().endsWith(".mov")
-                  ? "video/quicktime"
-                  : "video/mp4"
-              }
+            <RotatingMutedVideos
+              clips={clips}
+              maxClipMs={SERVICE_CLIP_MS}
+              fadeMs={1200}
+              videoClassName="absolute inset-0 h-full w-full object-cover"
+              aria-hidden
             />
-          </video>
+          </div>
         ) : (
           <Image
             src={mediaUrl(service.image!)}
