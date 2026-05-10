@@ -12,6 +12,7 @@
     "db:seed": "npx tsx prisma/seed.ts",
     "db:studio": "npx prisma studio",
     "upload:media": "npx tsx scripts/upload-media-tigris.ts",
+    "media:compress": "bash scripts/compress-public-videos.sh",
     "lint": "eslint",
     "prod": "next start -H 0.0.0.0"
   },
