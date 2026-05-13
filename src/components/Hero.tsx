@@ -99,14 +99,14 @@ function StatCounter({
   );
 }
 
-/** Vários clipes em ciclo — ajuste paths em `public/videos/` */
+/** Vários clipes em ciclo — primeiro o mais leve para LCP rápido */
 const HERO_VIDEOS = [
-  { src: "/videos/vid-20251215-151804.mp4", label: "hero-a" },
-  { src: "/videos/vid-20251207-164840.mp4", label: "hero-b" },
-  { src: "/videos/lanchas1.mp4", label: "hero-c" },
-  { src: "/videos/pwc.mp4", label: "hero-d" },
-  { src: "/videos/passeios-personalizados.mp4", label: "hero-e" },
-  { src: "/videos/quem-somos-lancha.mp4", label: "hero-f" },
+  { src: "/videos/lanchas1.mp4", label: "hero-a" },
+  { src: "/videos/quem-somos-lancha.mp4", label: "hero-b" },
+  { src: "/videos/vid-20251207-164840.mp4", label: "hero-c" },
+  { src: "/videos/passeios-personalizados.mp4", label: "hero-d" },
+  { src: "/videos/vid-20251215-151804.mp4", label: "hero-e" },
+  { src: "/videos/pwc.mp4", label: "hero-f" },
 ] as const;
 
 /** Teto por clipe — vídeos longos não ficam eternos */
@@ -132,7 +132,7 @@ export default function Hero() {
             clips={HERO_VIDEOS}
             maxClipMs={MAX_CLIP_MS}
             fadeMs={1800}
-            preloadFirst="auto"
+            mode="double-buffer"
             videoClassName="pointer-events-none absolute inset-0 h-full w-full object-cover"
             aria-hidden
           />
