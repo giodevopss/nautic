@@ -48,6 +48,13 @@ O valor fica embutido no JavaScript no build; sem isto a página de reserva e o 
 
 Se definir **as duas**, prevalece `NEXT_PUBLIC_API_URL`.
 
+### Reserva ou login não ligam à API
+
+- O site em **HTTPS** com `NEXT_PUBLIC_API_URL` em **http://** é bloqueado pelo navegador — use sempre `https://` na URL da API.
+- Não coloque **`/api` no fim** da URL base (ex.: errado: `https://…railway.app/api`); o código já usa `/api/vehicles`, etc.
+- Abra a URL da API no browser (`…/api/health`) e confirme JSON `ok`; se falhar, o serviço API ou o Mongo não estão acessíveis.
+- Depois de mudar `NEXT_PUBLIC_API_URL` ou `API_UPSTREAM_URL`, é preciso **novo build** do Web.
+
 ### Mídia (Railway Bucket / Tigris)
 
 1. Envie `public/videos/` e `public/images/` com o script local (S3-compatível):

@@ -4,7 +4,12 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAuthModal, type AuthUser } from "@/context/AuthModalContext";
-import { getPublicApiUrl } from "@/lib/api";
+import {
+  describePublicApiFetchFailure,
+  getPublicApiUrl,
+  mixedContentBlockMessage,
+  publicApiUrl,
+} from "@/lib/api";
 
 export default function AuthModal() {
   const { modal, closeModal, openLogin, openRegister, authSuccess } = useAuthModal();
@@ -59,9 +64,14 @@ export default function AuthModal() {
       setError("API não configurada.");
       return;
     }
+    const mc = mixedContentBlockMessage(apiBase);
+    if (mc) {
+      setError(mc);
+      return;
+    }
     setBusy(true);
     try {
-      const r = await fetch(`${apiBase}/api/auth/vip-lead`, {
+      const r = await fetch(publicApiUrl(apiBase, "/api/auth/vip-lead"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: email.trim() }),
@@ -72,8 +82,8 @@ export default function AuthModal() {
         return;
       }
       setVipSent(true);
-    } catch {
-      setError("Falha de rede.");
+    } catch (e) {
+      setError(describePublicApiFetchFailure(e));
     } finally {
       setBusy(false);
     }
@@ -86,9 +96,14 @@ export default function AuthModal() {
       setError("API não configurada.");
       return;
     }
+    const mc = mixedContentBlockMessage(apiBase);
+    if (mc) {
+      setError(mc);
+      return;
+    }
     setBusy(true);
     try {
-      const r = await fetch(`${apiBase}/api/auth/login`, {
+      const r = await fetch(publicApiUrl(apiBase, "/api/auth/login"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
@@ -99,8 +114,8 @@ export default function AuthModal() {
         return;
       }
       if (data.token && data.customer) authSuccess(data.token, data.customer);
-    } catch {
-      setError("Falha de rede.");
+    } catch (e) {
+      setError(describePublicApiFetchFailure(e));
     } finally {
       setBusy(false);
     }

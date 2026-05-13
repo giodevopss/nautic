@@ -8,7 +8,7 @@ import {
   useMemo,
   useState,
 } from "react";
-import { getPublicApiUrl } from "@/lib/api";
+import { getPublicApiUrl, publicApiUrl } from "@/lib/api";
 
 export type AuthUser = {
   id: string;
@@ -54,7 +54,7 @@ export function AuthModalProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     try {
-      const r = await fetch(`${apiBase}/api/auth/me`, {
+      const r = await fetch(publicApiUrl(apiBase, "/api/auth/me"), {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!r.ok) {

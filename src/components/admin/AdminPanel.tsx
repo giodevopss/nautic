@@ -1,7 +1,11 @@
 "use client";
 
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getPublicApiUrl, PUBLIC_API_CONFIG_MESSAGE_PT } from "@/lib/api";
+import {
+  getPublicApiUrl,
+  publicApiUrl,
+  PUBLIC_API_CONFIG_MESSAGE_PT,
+} from "@/lib/api";
 import { jetskiProductLabel } from "@/lib/jetski-pricing";
 
 const TOKEN_KEY = "nautic_admin_token";
@@ -74,6 +78,9 @@ export default function AdminPanel() {
 
   const adminFetch = useCallback(
     async (path: string, init?: RequestInit) => {
+      if (apiBase === undefined) {
+        throw new Error("API não configurada.");
+      }
       const baseH = authHeaders();
       const extra = init?.headers;
       const headers = new Headers(baseH);
@@ -84,7 +91,7 @@ export default function AdminPanel() {
           if (v != null) headers.set(k, String(v));
         });
       }
-      const r = await fetch(`${apiBase}${path}`, {
+      const r = await fetch(publicApiUrl(apiBase, path), {
         cache: "no-store",
         ...init,
         headers,
@@ -102,8 +109,12 @@ export default function AdminPanel() {
       setLoginError("Informe o segredo de administrador.");
       return;
     }
+    if (apiBase === undefined) {
+      setLoginError("API não configurada.");
+      return;
+    }
     try {
-      const r = await fetch(`${apiBase}/api/admin/vehicles`, {
+      const r = await fetch(publicApiUrl(apiBase, "/api/admin/vehicles"), {
         headers: { Authorization: `Bearer ${t}` },
       });
       if (r.status === 401 || r.status === 503) {

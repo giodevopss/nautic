@@ -4,7 +4,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import {
+  describePublicApiFetchFailure,
   getPublicApiUrl,
+  mixedContentBlockMessage,
+  publicApiUrl,
   PUBLIC_API_CONFIG_MESSAGE_PT,
 } from "@/lib/api";
 import {
@@ -114,17 +117,29 @@ export default function Booking() {
     }
     let cancelled = false;
     (async () => {
+      const mc = mixedContentBlockMessage(apiBase);
+      if (mc) {
+        if (!cancelled) setLoadError(mc);
+        return;
+      }
       try {
-        const r = await fetch(`${apiBase}/api/vehicles`);
-        if (!r.ok) throw new Error("Falha ao carregar embarcações.");
+        const url = publicApiUrl(apiBase, "/api/vehicles");
+        const r = await fetch(url, { cache: "no-store" });
+        if (!r.ok) {
+          const hint =
+            r.status === 404
+              ? " (404: URL da API errada ou path inexistente — não inclua /api no fim de NEXT_PUBLIC_API_URL.)"
+              : "";
+          throw new Error(`HTTP ${r.status}${hint}`);
+        }
         const data = (await r.json()) as Vehicle[];
         if (!cancelled) {
           setVehicles(data);
           setLoadError(null);
         }
-      } catch {
+      } catch (e) {
         if (!cancelled) {
-          setLoadError("Não foi possível conectar à API. Verifique se ela está rodando.");
+          setLoadError(describePublicApiFetchFailure(e));
         }
       }
     })();
@@ -191,6 +206,11 @@ export default function Booking() {
         setFormError("API não configurada.");
         return;
       }
+      const mc = mixedContentBlockMessage(apiBase);
+      if (mc) {
+        setFormError(mc);
+        return;
+      }
       const startAt = buildStartISO(date, time);
       if (!startAt) {
         setFormError("Data ou horário inválidos.");
@@ -211,7 +231,7 @@ export default function Booking() {
 
       setSubmitting(true);
       try {
-        const r = await fetch(`${apiBase}/api/reservations/book`, {
+        const r = await fetch(publicApiUrl(apiBase, "/api/reservations/book"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -244,8 +264,8 @@ export default function Booking() {
         setOptChurrasco(false);
         setOptCooler(false);
         setOptSom(false);
-      } catch {
-        setFormError("Falha de rede. Tente novamente.");
+      } catch (e) {
+        setFormError(describePublicApiFetchFailure(e));
       } finally {
         setSubmitting(false);
       }

@@ -10,7 +10,14 @@ import authRouter from "./routes/auth";
 const app = express();
 const PORT = Number(process.env.PORT || process.env.API_PORT) || 3001;
 
-app.use(cors());
+app.use(
+  cors({
+    origin: true,
+    methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    maxAge: 86_400,
+  }),
+);
 app.use(express.json());
 
 app.get("/api/health", async (_req, res) => {
