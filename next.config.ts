@@ -1,5 +1,8 @@
 import type { NextConfig } from "next";
 
+const apiUpstream =
+  process.env.API_UPSTREAM_URL?.trim().replace(/\/$/, "") ?? "";
+
 function mediaRemotePattern():
   | { protocol: "http" | "https"; hostname: string }
   | undefined {
@@ -21,6 +24,19 @@ function mediaRemotePattern():
 const mediaPattern = mediaRemotePattern();
 
 const nextConfig: NextConfig = {
+  env: {
+    /** Injetado no cliente no build quando existe proxy /api */
+    NEXT_PUBLIC_API_SAME_ORIGIN: apiUpstream ? "1" : "",
+  },
+  async rewrites() {
+    if (!apiUpstream) return [];
+    return [
+      {
+        source: "/api/:path*",
+        destination: `${apiUpstream}/api/:path*`,
+      },
+    ];
+  },
   images: {
     remotePatterns: [
       {

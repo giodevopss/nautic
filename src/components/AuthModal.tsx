@@ -55,7 +55,7 @@ export default function AuthModal() {
   const submitVipLead = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (!apiBase) {
+    if (apiBase === undefined) {
       setError("API não configurada.");
       return;
     }
@@ -82,7 +82,7 @@ export default function AuthModal() {
   const submitLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (!apiBase) {
+    if (apiBase === undefined) {
       setError("API não configurada.");
       return;
     }

@@ -49,7 +49,7 @@ export function AuthModalProvider({ children }: { children: React.ReactNode }) {
   const refreshUser = useCallback(async () => {
     if (typeof window === "undefined") return;
     const token = localStorage.getItem(TOKEN_KEY);
-    if (!token || !apiBase) {
+    if (!token || apiBase === undefined) {
       setUser(null);
       return;
     }

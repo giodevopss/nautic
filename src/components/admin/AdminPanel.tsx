@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getPublicApiUrl } from "@/lib/api";
+import { getPublicApiUrl, PUBLIC_API_CONFIG_MESSAGE_PT } from "@/lib/api";
 import { jetskiProductLabel } from "@/lib/jetski-pricing";
 
 const TOKEN_KEY = "nautic_admin_token";
@@ -132,11 +132,11 @@ export default function AdminPanel() {
     setToken(null);
   };
 
-  if (!apiBase) {
+  if (apiBase === undefined) {
     return (
       <div className="min-h-screen bg-navy-dark px-6 py-16 text-white">
-        <p className="text-center text-white/60">
-          Defina NEXT_PUBLIC_API_URL para usar o painel.
+        <p className="mx-auto max-w-lg text-center text-sm leading-relaxed text-white/60">
+          {PUBLIC_API_CONFIG_MESSAGE_PT}
         </p>
       </div>
     );

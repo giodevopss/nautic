@@ -36,9 +36,17 @@ Após deploy, copie a **URL pública** do serviço (ex.: `https://api-xxx.up.rai
   `npm run prod`  
   (Next usa a variável `PORT` automaticamente quando o Railway define.)
 
-**Importante**: defina **`NEXT_PUBLIC_API_URL`** antes do build, apontando para a URL **pública** da API do passo 2 (sem barra final), por exemplo:
+**Importante** — o browser precisa de saber onde está a API. Escolha **uma** das opções (no serviço **Web**, antes do **`npm run build`**):
+
+**A) `NEXT_PUBLIC_API_URL`** (mais simples) — URL pública da API do passo 2, **sem barra final**, por exemplo:
 
 `https://api-xxx.up.railway.app`
+
+O valor fica embutido no JavaScript no build; sem isto a página de reserva e o login mostram aviso de configuração.
+
+**B) `API_UPSTREAM_URL`** — URL da API **só no servidor** do Next. O build gera rewrites: pedidos do browser a `https://seu-site.up.railway.app/api/...` são encaminhados para essa API (menos exposição da URL da API no cliente; CORS no Express continua irrelevante para este fluxo). Não use barra final.
+
+Se definir **as duas**, prevalece `NEXT_PUBLIC_API_URL`.
 
 ### Mídia (Railway Bucket / Tigris)
 

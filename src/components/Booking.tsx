@@ -3,7 +3,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { getPublicApiUrl } from "@/lib/api";
+import {
+  getPublicApiUrl,
+  PUBLIC_API_CONFIG_MESSAGE_PT,
+} from "@/lib/api";
 import {
   JETSKI_CATEGORY_LABEL,
   JETSKI_MODELS_LINE,
@@ -105,10 +108,8 @@ export default function Booking() {
   }, [experience, jetskiCategory, jetskiProductKey]);
 
   useEffect(() => {
-    if (!apiBase) {
-      setLoadError(
-        "Configure NEXT_PUBLIC_API_URL (ex.: http://localhost:3001) e inicie a API.",
-      );
+    if (apiBase === undefined) {
+      setLoadError(PUBLIC_API_CONFIG_MESSAGE_PT);
       return;
     }
     let cancelled = false;
@@ -186,7 +187,7 @@ export default function Booking() {
       e.preventDefault();
       setFormError(null);
       setSuccessId(null);
-      if (!apiBase) {
+      if (apiBase === undefined) {
         setFormError("API não configurada.");
         return;
       }
